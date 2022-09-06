@@ -4,7 +4,7 @@
  */
 #include <SPI.h>
 
-#include <B20M04_4x8.h>
+#include "src/B20M04_4x8/B20M04_4x8.h"
 
 // Create an instance of the display with pin 10 as the SLAVESELECT pin.
 B20M04_4x8 disp(10);
@@ -61,5 +61,3 @@ void loop()
 	}
 
 }
-
-
