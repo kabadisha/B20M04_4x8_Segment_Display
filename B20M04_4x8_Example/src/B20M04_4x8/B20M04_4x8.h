@@ -10,6 +10,7 @@
 class B20M04_4x8 {
   public:
     B20M04_4x8(int SLAVESELECT);
+    void clearDisplay();
     void displayInteger(int input);
     void displayDouble(double input);
     void displayFloat(float input);

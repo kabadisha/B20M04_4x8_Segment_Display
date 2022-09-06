@@ -7,7 +7,7 @@
 const String _CHARS = " 0123456789ABCDEFGHIJKLNOPQRSTUVXYZbcdghinortuv_-";
 
 const byte _CHAR_SET[] PROGMEM = {
-	B00000000, // = 
+	B00000000, // =
 	B01111110, // = 0
 	B00110000, // = 1
 	B01101101, // = 2
@@ -80,6 +80,13 @@ B20M04_4x8::B20M04_4x8(int SLAVESELECT) {
 	displayInteger(0);
 }
 
+// This will clear the display and reset the cursor
+void B20M04_4x8::clearDisplay() {
+	// Reset the buffer to empty
+	memset(_BUFFER, B00000000, BUFFER_SIZE);
+	renderBuffer();
+}
+
 /*
  * This function is called by both displayInteger and by displayDouble.
  * It contains functionality common to both:
@@ -89,7 +96,7 @@ String B20M04_4x8::rightAlign(String input) {
 	String inputMinusPoints = String(input);
 
 	inputMinusPoints.remove(inputMinusPoints.indexOf('.'),1);
-	
+
 	int numLeadingSpaces = NO_DIGITS - inputMinusPoints.length();
 	for (int i = 0; i < numLeadingSpaces; i++) {
 		input = ' ' + input;
@@ -99,11 +106,11 @@ String B20M04_4x8::rightAlign(String input) {
 }
 
 /*
- * This function applies upper and lower bounds to an integer and then 
+ * This function applies upper and lower bounds to an integer and then
  * converts to a string before displaying it.
  */
 void B20M04_4x8::displayInteger(int input) {
-	
+
 	// Apply upper and lower bounds
 	if (input > _MAX_POSITIVE) {
 		displayText(String(_MAX_POSITIVE));
@@ -115,11 +122,11 @@ void B20M04_4x8::displayInteger(int input) {
 }
 
 /*
- * This function applies upper and lower bounds to a double and then 
+ * This function applies upper and lower bounds to a double and then
  * converts to a string before displaying it.
  */
 void B20M04_4x8::displayDouble(double input) {
-	
+
 	// Apply upper and lower bounds
 	if (input > _MAX_POSITIVE) {
 		displayText(String(_MAX_POSITIVE));
@@ -131,11 +138,11 @@ void B20M04_4x8::displayDouble(double input) {
 }
 
 /*
- * This function applies upper and lower bounds to a float and then 
+ * This function applies upper and lower bounds to a float and then
  * converts to a string before displaying it.
  */
 void B20M04_4x8::displayFloat(float input) {
-	
+
 	// Apply upper and lower bounds
 	if (input > _MAX_POSITIVE) {
 		displayText(String(_MAX_POSITIVE));
@@ -154,7 +161,8 @@ void B20M04_4x8::displayFloat(float input) {
  * This function calculates the component digits of a string and then delegates displaying them.
  */
 void B20M04_4x8::displayText(String input) {
-	
+
+	clearDisplay();
 	// Reset the buffer to empty
 	memset(_BUFFER, B00000000, BUFFER_SIZE);
 
@@ -181,7 +189,7 @@ void B20M04_4x8::displayText(String input) {
 	for (int i = 0; i < NO_DIGITS; i++) {
 		char thisChar = input.charAt(i);
 		int charIndex = _CHARS.indexOf(thisChar);
-		
+
 		/*
 		 * Here we calculate which byte this character needs to be in. Since the right most digit
 		 * on the display is handled by the first byte, the order of the characters is effectively
@@ -244,16 +252,16 @@ void B20M04_4x8::renderBuffer() {
 	}
 
 	SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
-	
+
 	// take the SS pin low to select the chip:
 	digitalWrite(_SLAVESELECT, LOW);
-	
+
 	//  send in the address and value via SPI:
 	SPI.transfer(_BUFFER, BUFFER_SIZE);
-	
+
 	// take the SS pin high to de-select the chip:
 	digitalWrite(_SLAVESELECT, HIGH);
-	
+
 	SPI.endTransaction();
 }
 

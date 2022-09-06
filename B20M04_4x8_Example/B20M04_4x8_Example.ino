@@ -23,8 +23,14 @@ void loop()
 	disp.displayText("ABCD");
 	delay(2000);
 
-	disp.displayText("ABC");
+	disp.displayText("CLEA");
 	delay(2000);
+
+  disp.clearDisplay();
+  delay(2000);
+
+  disp.displayText("ABC");
+  delay(2000);
 
 	disp.toggleAN1(true);
 	disp.toggleAN2(true);
