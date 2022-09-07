@@ -4,8 +4,11 @@
  */
 #include "src/B20M04_4x8/B20M04_4x8.h"
 
-// Create an instance of the display with pin 10 as the SLAVESELECT pin.
-B20M04_4x8 disp(10, 11, 13);
+// Create an instance of the display with pins:
+// 4 as SLAVESELECT
+// 7 as MOSI
+// 8 as CLOCK
+B20M04_4x8 disp(4, 7, 8);
 
 void setup() {
   
