@@ -11,7 +11,17 @@
 B20M04_4x8 disp(4, 7, 8);
 
 void setup() {
-  
+  disp.displayText("Boot.");
+  delay(1000);
+  disp.displayText(".");
+  delay(500);
+  disp.displayText("..");
+  delay(500);
+  disp.displayText("...");
+  delay(500);
+  disp.displayText("....");
+  delay(500);
+  disp.displayText("On");
 }
 
 void loop()
