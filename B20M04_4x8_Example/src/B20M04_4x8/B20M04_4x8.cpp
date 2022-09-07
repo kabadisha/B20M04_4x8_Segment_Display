@@ -1,90 +1,94 @@
 #include "B20M04_4x8.h"
 //avr pgmspace library for storing the LUT in program flash instead of sram
 #include <avr/pgmspace.h>
-// inslude the SPI library:
-#include <SPI.h>
 
-const String _CHARS = " 0123456789ABCDEFGHIJKLNOPQRSTUVXYZbcdghinortuv_-";
+// This is the full list of supported characters
+// Full-stops/periods/decimal points are handled by adding one to the previous
+// Byte before it is sent to the display. Notice how all the bytes below end
+// with a zero. That's the decimal point bit.
+const String _VALID_CHARS = " 0123456789ABCDEFGHIJKLNOPQRSTUVXYZbcdghinortuv_-";
 
 const byte _CHAR_SET[] PROGMEM = {
 	B00000000, // =
-	B01111110, // = 0
-	B00110000, // = 1
-	B01101101, // = 2
-	B01111001, // = 3
-	B00110011, // = 4
-	B01011011, // = 5
-	B01011111, // = 6
-	B01110000, // = 7
-	B01111111, // = 8
-	B01110011, // = 9
-	B01110111, // = A
-	B01111111, // = B
-	B01001110, // = C
-	B01111110, // = D
-	B01001111, // = E
-	B01000111, // = F
-	B01011110, // = G
-	B00110111, // = H
-	B00110000, // = I
-	B00111000, // = J
-	B00110111, // = K
-	B00001110, // = L
-	B01110110, // = N
-	B01111110, // = O
-	B01100111, // = P
-	B01110011, // = Q
-	B01110111, // = R
-	B01011011, // = S
-	B00001111, // = T
-	B00111110, // = U
-	B00111110, // = V
-	B00110111, // = X
-	B00110011, // = Y
-	B01101101, // = Z
-	B00011111, // = b
-	B00001101, // = c
-	B00111101, // = d
-	B01111011, // = g
-	B00010111, // = h
-	B00010000, // = i
-	B00010101, // = n
-	B00011101, // = o
-	B00000101, // = r
-	B00001111, // = t
-	B00011100, // = u
-	B00011100, // = v
-	B00001000, // = _
-	B00000001 // = -
+	B11111100, // = 0
+	B01100000, // = 1
+	B11011010, // = 2
+	B11110010, // = 3
+	B01100110, // = 4
+	B10110110, // = 5
+	B10111110, // = 6
+	B11100000, // = 7
+	B11111110, // = 8
+	B11100110, // = 9
+	B11101110, // = A
+	B11111110, // = B
+	B10011100, // = C
+	B11111100, // = D
+	B10011110, // = E
+	B10001110, // = F
+	B10111100, // = G
+	B01101110, // = H
+	B01100000, // = I
+	B01110000, // = J
+	B01101110, // = K
+	B00011100, // = L
+	B11101100, // = N
+	B11111100, // = O
+	B11001110, // = P
+	B11100110, // = Q
+	B11101110, // = R
+	B10110110, // = S
+	B00011110, // = T
+	B01111100, // = U
+	B01111100, // = V
+	B01101110, // = X
+	B01100110, // = Y
+	B11011010, // = Z
+	B00111110, // = b
+	B00011010, // = c
+	B01111010, // = d
+	B11110110, // = g
+	B00101110, // = h
+	B00100000, // = i
+	B00101010, // = n
+	B00111010, // = o
+	B00001010, // = r
+	B00011110, // = t
+	B00111000, // = u
+	B00111000, // = v
+	B00010000, // = _
+	B00000010  // = -
 };
 
 /*
  * Constructor for the class
  */
-B20M04_4x8::B20M04_4x8(int SLAVESELECT) {
-	_SLAVESELECT = SLAVESELECT;
+B20M04_4x8::B20M04_4x8(int SLAVESELECT_PIN, int MOSI_PIN, int CLOCK_PIN) {
+	_SLAVESELECT_PIN = SLAVESELECT_PIN;
+	_MOSI_PIN = MOSI_PIN;
+	_CLOCK_PIN = CLOCK_PIN;
 	_MAX_POSITIVE = pow(10, NO_DIGITS)-1; // 9999 for 4 segments
 	_MAX_NEGATIVE = pow(-10, NO_DIGITS-1)+1; // -999 for 4 segments
 	_AN1_ENABLED = false;
 	_AN2_ENABLED = false;
-	byte _BUFFER[BUFFER_SIZE];
-	memset(_BUFFER, B00000000, BUFFER_SIZE);
 
-	// Disable writing to the display
-	digitalWrite(_SLAVESELECT, HIGH);
+  pinMode(_SLAVESELECT_PIN, OUTPUT);
+  pinMode(MOSI_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
 
-	// Initialise SPI:
-  	SPI.begin();
+	digitalWrite(_SLAVESELECT_PIN, HIGH);  // Start with SS high
+	digitalWrite(MOSI_PIN, HIGH);
+  digitalWrite(CLOCK_PIN, LOW);  // SCK low
 
-  	// Initialise the display with the number zero.
-	displayInteger(0);
+  // Initialise the display blank.
+	clearDisplay();
 }
 
 // This will clear the display and reset the cursor
 void B20M04_4x8::clearDisplay() {
-	// Reset the buffer to empty
-	memset(_BUFFER, B00000000, BUFFER_SIZE);
-	renderBuffer();
+	_AN1_ENABLED = false;
+	_AN2_ENABLED = false;
+	displayText("    ");
 }
 
 /*
@@ -162,10 +166,6 @@ void B20M04_4x8::displayFloat(float input) {
  */
 void B20M04_4x8::displayText(String input) {
 
-	clearDisplay();
-	// Reset the buffer to empty
-	memset(_BUFFER, B00000000, BUFFER_SIZE);
-
 	/*
 	 * Separate all double full stops (..) with a space, as that is how it will be represented
 	 * on the display.
@@ -183,17 +183,26 @@ void B20M04_4x8::displayText(String input) {
 	}
 
 	/*
+	 * We must send the start bit as 1.
+	 */
+	sendBit(HIGH);
+
+	/*
 	 * We only loop once for each digit available. If the input string is too long it will be
 	 * truncated as a result.
+	 * Due to the reversed nature of the display where the first byte represents the right
+	 * most digit of the display, we have to add digits to a buffer, then iterate over that
+	 * buffer to update the display.
 	 */
+	byte _buffer[NO_DIGITS];
 	for (int i = 0; i < NO_DIGITS; i++) {
 		char thisChar = input.charAt(i);
-		int charIndex = _CHARS.indexOf(thisChar);
+		int charIndex = _VALID_CHARS.indexOf(thisChar);
 
 		/*
 		 * Here we calculate which byte this character needs to be in. Since the right most digit
 		 * on the display is handled by the first byte, the order of the characters is effectively
-		 * reversed in the buffer array.
+		 * reversed.
 		 */
 		int byteIndex = (NO_DIGITS - 1) - i;
 
@@ -205,72 +214,72 @@ void B20M04_4x8::displayText(String input) {
 			 * as required.
 			 * If the character is not supported, we also leave a blank space
 			 */
-			charIndex = _CHARS.indexOf(' ');
+			charIndex = _VALID_CHARS.indexOf(' ');
 		}
 
 		byte character = pgm_read_byte(&_CHAR_SET[charIndex]); // fetch character from program memory
 
 		if ('.' == input.charAt(i + 1)) {
 			/*
-			 * If the next character is a full stop, then we need to add decimal point to the
-			 * previous digit. Counter-intuitively, this requires adding 1, not subtracting 1
-			 * due to the reversed nature of the display where the first byte represents the right
-			 * most digit of the display.
-			 *
+			 * If the next character is a full stop, then we need to add decimal point to this digit
+			 * by setting bit zero (least-significant, rightmost bit) to 1.
 			 * We then remove the  full stop from the string as we are dealing with it now and
 			 * don't want it to count as a digit in it's own right.
 			 */
-			bitSet(_BUFFER[byteIndex + 1],7);
+			bitSet(character, 0);
 			input.remove(i + 1, 1);
 		}
-
-		/*
-		 * The first character has to go in the 4th byte, and the last character goes in the first byte.
-		 */
-		_BUFFER[byteIndex] = character;
+		_buffer[byteIndex] = character;
 	}
 
-	renderBuffer();
-}
-
-void B20M04_4x8::renderBuffer() {
-	/*
-	 * We must set the start bit, which is the most significant bit of the first byte, to 1.
-	 */
-	bitSet(_BUFFER[0],7);
+	// Now we output the buffered display value.
+	for (int i = 0; i < NO_DIGITS; i++) {
+		sendByte(_buffer[i]);
+	}
 
 	if (_AN1_ENABLED) {
-		bitSet(_BUFFER[BUFFER_SIZE - 1], 6);
+		sendBit(HIGH);
 	} else {
-		bitClear(_BUFFER[BUFFER_SIZE - 1], 6);
+		sendBit(LOW);
 	}
 
 	if (_AN2_ENABLED) {
-		bitSet(_BUFFER[BUFFER_SIZE - 1], 5);
+		sendBit(HIGH);
 	} else {
-		bitClear(_BUFFER[BUFFER_SIZE - 1], 5);
+		sendBit(LOW);
 	}
+	sendBit(LOW); // Send the final, closing bit.
+}
 
-	SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE0));
+void B20M04_4x8::sendBit(int _value)  // Bitbang a single bit
+{
+  digitalWrite(_SLAVESELECT_PIN, LOW); // SlaveSelect low
 
-	// take the SS pin low to select the chip:
-	digitalWrite(_SLAVESELECT, LOW);
+  digitalWrite(_MOSI_PIN, _value);
+  digitalWrite(_CLOCK_PIN, HIGH);
+  digitalWrite(_CLOCK_PIN, LOW);
 
-	//  send in the address and value via SPI:
-	SPI.transfer(_BUFFER, BUFFER_SIZE);
+  digitalWrite(_SLAVESELECT_PIN, HIGH);  // SlaveSelect high again
+}
 
-	// take the SS pin high to de-select the chip:
-	digitalWrite(_SLAVESELECT, HIGH);
+void B20M04_4x8::sendByte(byte _send)  // Bitbang a while byte
+{
+  digitalWrite(_SLAVESELECT_PIN, LOW);  // SlaveSelect low
 
-	SPI.endTransaction();
+  for(int i=7; i >= 0; i--)  // There are 8 bits in a byte
+  {
+    digitalWrite(_MOSI_PIN, bitRead(_send, i));    // Set MOSI
+    digitalWrite(_CLOCK_PIN, HIGH);                // SCK high
+    digitalWrite(_CLOCK_PIN, LOW);                 // SCK low
+  }
+
+  digitalWrite(_SLAVESELECT_PIN, HIGH);  // SlaveSelect high again
 }
 
 void B20M04_4x8::toggleAN1(bool enabled) {
 	_AN1_ENABLED = enabled;
-	renderBuffer();
 }
 
 void B20M04_4x8::toggleAN2(bool enabled) {
 	_AN2_ENABLED = enabled;
-	renderBuffer();
 }

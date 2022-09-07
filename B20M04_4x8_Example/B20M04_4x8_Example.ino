@@ -2,24 +2,17 @@
  * Due to an oddity of the Arduino IDE, we have to also include the SPI library manually,
  * despite the fact that the B20M04_4x8 already includes it.
  */
-#include <SPI.h>
-
 #include "src/B20M04_4x8/B20M04_4x8.h"
 
 // Create an instance of the display with pin 10 as the SLAVESELECT pin.
-B20M04_4x8 disp(10);
+B20M04_4x8 disp(10, 11, 13);
 
-void setup()
-{
-
+void setup() {
+  
 }
 
 void loop()
 {
-
-	disp.toggleAN1(false);
-	disp.toggleAN2(false);
-
 	disp.displayText("ABCD");
 	delay(2000);
 
